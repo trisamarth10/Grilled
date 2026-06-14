@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  /* Backgrounds */
+  --bg-base: #040010;
+  --bg-surface: rgba(255, 255, 255, 0.02);
+  --bg-surface-hover: rgba(255, 255, 255, 0.05);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(139, 92, 246, 0.15);
+
+  /* Brand colors */
+  --violet: #7c3aed;
+  --violet-light: #8b5cf6;
+  --violet-pale: #a78bfa;
+  --cyan: #06b6d4;
+  --cyan-light: #22d3ee;
+  --pink: #ec4899;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  /* Status */
+  --green: #10b981;
+  --red: #ef4444;
+}
+
+/* ─── Tailwind Theme Extension ───────────────────────────────────────────────── */
+
+@theme inline {
+  /* Fonts (CSS vars injected by layout.tsx via next/font) */
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+
+  /* Brand color utilities */
+  --color-violet: #7c3aed;
+  --color-violet-light: #8b5cf6;
+  --color-violet-pale: #a78bfa;
+  --color-cyan: #06b6d4;
+  --color-cyan-light: #22d3ee;
+  --color-pink: #ec4899;
+  --color-green: #10b981;
+  --color-danger: #ef4444;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #64748b;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-inter), sans-serif;
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Reusable Utility Classes ───────────────────────────────────────────────── */
+
+/* Gradient text — violet → cyan → pink (hero headlines) */
+.gradient-text {
+  background: linear-gradient(to right, #8b5cf6, #22d3ee, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient text — violet → cyan (logo, labels) */
+.gradient-brand-text {
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Space Grotesk for display headings */
+.font-display {
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+/* JetBrains Mono for labels/metadata — tracked + uppercase */
+.font-label {
+  font-family: var(--font-jetbrains-mono), monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

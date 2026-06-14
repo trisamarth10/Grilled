@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Unused / superseded avatar models
+web/public/Alex.glb
+web/public/alex2.glb
+
+# Next.js
+web/.next/
+web/out/
+web/build/
+
+# Dependencies
+web/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+web/tsconfig.tsbuildinfo
+web/next-env.d.ts
+
+# Vercel
+web/.vercel
