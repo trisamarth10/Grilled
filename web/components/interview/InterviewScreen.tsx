@@ -120,6 +120,7 @@ export function InterviewScreen({ session }: { session: SessionData }) {
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [userSpeaking,   setUserSpeaking]   = useState(false);
   const [startError,     setStartError]     = useState<string | null>(null);
+  const [sessionTooShort, setSessionTooShort] = useState(false);
   const [debugRms,       setDebugRms]       = useState(0);
   const [latencyPanel,   setLatencyPanel]   = useState<{
     turn: number; blobKb: number; upload: number; stt: number;
@@ -187,6 +188,8 @@ export function InterviewScreen({ session }: { session: SessionData }) {
 
   /* ── End session ────────────────────────────────────────────────────────── */
 
+  const MIN_SESSION_SECONDS = 0; // DEV: set to 20 * 60 before production
+
   const handleEndSession = useCallback(async () => {
     if (endedRef.current) return;
     endedRef.current = true;
@@ -198,10 +201,19 @@ export function InterviewScreen({ session }: { session: SessionData }) {
     currentAudioRef.current?.pause();
     if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    audioContextRef.current?.close();
-    await markSessionEnded(session.id, messagesRef.current);
+    try { audioContextRef.current?.close(); } catch {}
+
+    const duration = sessionSeconds;
+    await markSessionEnded(session.id, messagesRef.current, duration);
+
+    if (duration < MIN_SESSION_SECONDS) {
+      setSessionTooShort(true);
+      setTimeout(() => router.push("/dashboard"), 4500);
+      return;
+    }
+
     router.push(`/report?sessionId=${session.id}`);
-  }, [session.id, router, setIS]);
+  }, [session.id, router, setIS, sessionSeconds]);
 
   /* ── ALEX speaks ────────────────────────────────────────────────────────── */
 
@@ -818,7 +830,7 @@ export function InterviewScreen({ session }: { session: SessionData }) {
       if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (maxRecordTimerRef.current) clearTimeout(maxRecordTimerRef.current);
-      audioContextRef.current?.close();
+      try { audioContextRef.current?.close(); } catch {}
     };
   }, []);
 
@@ -837,6 +849,32 @@ export function InterviewScreen({ session }: { session: SessionData }) {
 
   return (
     <div style={{ position: "relative", zIndex: 10, height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+      {sessionTooShort && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(4,0,16,0.97)", backdropFilter: "blur(8px)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: "16px", padding: "24px",
+        }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem",
+          }}>
+            ⏱
+          </div>
+          <h2 style={{ fontFamily: "var(--font-space-grotesk)", fontSize: "1.5rem", fontWeight: 700, color: "#fff", margin: 0 }}>
+            Session Too Short
+          </h2>
+          <p style={{ fontFamily: "var(--font-inter)", fontSize: "0.9375rem", color: "#94A3B8", textAlign: "center", maxWidth: 380, margin: 0, lineHeight: 1.65 }}>
+            A minimum of <strong style={{ color: "#fff" }}>20 minutes</strong> of interview is required to generate a meaningful report. This session ran for {Math.floor(sessionSeconds / 60)} min {sessionSeconds % 60}s.
+          </p>
+          <p style={{ fontFamily: "var(--font-jetbrains-mono)", fontSize: "11px", color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Returning to dashboard...
+          </p>
+        </div>
+      )}
 
       {interviewState === "awaiting_start" && (
         <BeginOverlay onStart={handleStart} error={startError} />

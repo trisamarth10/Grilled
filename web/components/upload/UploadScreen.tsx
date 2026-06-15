@@ -217,6 +217,7 @@ export function UploadScreen({ userId }: { userId: string }) {
       fileName: file.name,
       difficulty,
       targetCompany: company || undefined,
+      userId,
     });
 
     if ("error" in processResult) {

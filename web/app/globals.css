@@ -91,6 +91,64 @@ body {
   background-clip: text;
 }
 
+/* Animated gradient text — shifts position on loop */
+.gradient-animated {
+  background: linear-gradient(to right, #8b5cf6, #22d3ee, #ec4899, #8b5cf6);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 5s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes marqueeScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ─── Print — report PDF export ──────────────────────────────────────────────── */
+
+@media print {
+  body { background: #ffffff !important; color: #000000 !important; }
+
+  /* Hide everything except the report */
+  body > *:not(:has(.report-root)) { display: none !important; }
+
+  .report-root {
+    position: static !important;
+    max-width: 100% !important;
+    padding: 24px !important;
+    color: #000 !important;
+  }
+
+  /* Reset gradient text to black for print */
+  .report-root [style*="WebkitTextFillColor: transparent"],
+  .report-root [style*="-webkit-text-fill-color: transparent"] {
+    -webkit-text-fill-color: #000 !important;
+    background: none !important;
+    color: #000 !important;
+  }
+
+  /* Flatten card backgrounds */
+  .report-root > * {
+    background: #fff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Hide action bar and background */
+  .report-root [data-print-hide],
+  canvas, .report-root button { display: none !important; }
+
+  @page { margin: 24px; size: A4; }
+}
+
 /* Space Grotesk for display headings */
 .font-display {
   font-family: var(--font-space-grotesk), sans-serif;

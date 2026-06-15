@@ -10,6 +10,7 @@ export async function processResume(params: {
   fileName: string;
   difficulty: string;
   targetCompany?: string;
+  userId: string;
 }): Promise<{ sessionId: string } | { error: string }> {
   const supabase = createServerClient();
 
@@ -55,6 +56,7 @@ export async function processResume(params: {
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
     .insert({
+      user_id: params.userId,
       resume_id: params.resumeId,
       difficulty: params.difficulty,
       target_company: params.targetCompany ?? null,

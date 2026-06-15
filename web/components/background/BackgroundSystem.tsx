@@ -22,8 +22,8 @@ function NeuralCanvas() {
     const nodes = Array.from({ length: 35 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 1,
-      vy: (Math.random() - 0.5) * 1,
+      vx: (Math.random() - 0.5) * 2.6,
+      vy: (Math.random() - 0.5) * 2.6,
     }));
 
     let rafId: number;
@@ -58,13 +58,13 @@ function NeuralCanvas() {
           const r = Math.round(139 + (6 - 139) * t);
           const g = Math.round(92 + (182 - 92) * t);
           const b2 = Math.round(246 + (212 - 246) * t);
-          const opacity = (1 - dist / 180) * 0.12;
+          const opacity = (1 - dist / 180) * 0.32;
 
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
           ctx.strokeStyle = `rgba(${r},${g},${b2},${opacity})`;
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
       }

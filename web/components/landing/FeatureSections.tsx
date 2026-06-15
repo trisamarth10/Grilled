@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { GoogleSignInButton } from "@/components/ui/GoogleSignInButton";
@@ -133,6 +133,52 @@ function DFSTree() {
   );
 }
 
+/* ─── Question typewriter card ───────────────────────────────────────────────── */
+
+const QUESTION_FULL = "Tell me about the architectural trade-offs you considered when designing the caching layer. Why that approach over the alternatives?";
+
+function QuestionCard() {
+  const [visible, setVisible] = useState(false);
+  const [displayed, setDisplayed] = useState("");
+
+  useEffect(() => {
+    if (!visible) return;
+    if (displayed.length < QUESTION_FULL.length) {
+      const t = setTimeout(() => setDisplayed(QUESTION_FULL.slice(0, displayed.length + 1)), 28);
+      return () => clearTimeout(t);
+    }
+  }, [visible, displayed]);
+
+  return (
+    <motion.div
+      onViewportEnter={() => setVisible(true)}
+      viewport={{ once: true, margin: "-60px" }}
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(139,92,246,0.18)",
+        borderRadius: "12px", padding: "20px", backdropFilter: "blur(8px)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+        <motion.div
+          animate={{ opacity: [1, 0.35, 1] }}
+          transition={{ duration: 1.4, repeat: Infinity }}
+          style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#A78BFA" }}
+        />
+        <span className="font-label" style={{ fontSize: "10px", color: "#A78BFA" }}>Alex is asking</span>
+      </div>
+      <p style={{ fontSize: "0.875rem", color: "#CBD5E1", lineHeight: 1.65, fontFamily: "var(--font-inter)", fontWeight: 300, margin: 0 }}>
+        &ldquo;{displayed}
+        <motion.span
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 0.9, repeat: Infinity }}
+          style={{ display: "inline-block", width: "8px", height: "0.9em", background: "#22D3EE", marginLeft: "2px", verticalAlign: "middle", borderRadius: "1px" }}
+        />
+      </p>
+    </motion.div>
+  );
+}
+
 /* ─── Feature 2 visual — waveform + question card + stat pills ───────────────── */
 
 function WaveformVisual() {
@@ -192,45 +238,8 @@ function WaveformVisual() {
         ))}
       </div>
 
-      {/* Question card */}
-      <div
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: "12px",
-          padding: "20px",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <p className="font-label" style={{ fontSize: "10px", color: "#A78BFA", marginBottom: "10px" }}>
-          Alex is asking
-        </p>
-        <p
-          style={{
-            fontSize: "0.875rem",
-            color: "#CBD5E1",
-            lineHeight: 1.65,
-            fontFamily: "var(--font-inter)",
-            fontWeight: 300,
-            margin: 0,
-          }}
-        >
-          &ldquo;Tell me about the architectural trade-offs you considered when designing the caching layer. Why that approach over the alternatives?&rdquo;
-          <motion.span
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 1, repeat: Infinity }}
-            style={{
-              display: "inline-block",
-              width: "8px",
-              height: "0.9em",
-              background: "#22D3EE",
-              marginLeft: "3px",
-              verticalAlign: "middle",
-              borderRadius: "1px",
-            }}
-          />
-        </p>
-      </div>
+      {/* Question card with typewriter */}
+      <QuestionCard />
 
       {/* Stat pills */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
