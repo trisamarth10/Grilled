@@ -1,4 +1,9 @@
-import { openai } from "@/lib/ai/openai";
+import OpenAI from "openai";
+
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
+});
 import type { ResumeAnalysis, InterviewPlan } from "@/lib/resume/analyze-resume";
 
 interface Message {
@@ -55,8 +60,8 @@ export async function POST(request: Request) {
 
   const systemPrompt = buildSystemPrompt(plan, analysis, difficulty, company);
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+  const stream = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
     messages: [
       { role: "system", content: systemPrompt },
       ...messages,

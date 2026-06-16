@@ -22,18 +22,73 @@ interface Message {
   content: string;
 }
 
-const RMS_THRESHOLD           = 0.015; // normal turn: light threshold (user's turn to speak)
+const RMS_THRESHOLD           = 0.022; // raised: filters fan/ambient noise
 const INTERRUPT_RMS_THRESHOLD = 0.040; // interrupt: must be louder to cut off ALEX
 const SPEAK_FRAMES_NEEDED     = 4;     // ~60ms at 60fps before we start recording (normal)
 const INTERRUPT_FRAMES_NEEDED = 8;     // ~120ms to interrupt ALEX — avoids false triggers
 const INTERRUPT_GRACE_MS      = 900;   // ignore interrupts for this long after ALEX starts
-const SILENCE_DURATION_MS     = 700;
+const SILENCE_DURATION_MS     = 1000;  // 1s pause before treating as end-of-turn
 const MIN_BLOB_SIZE           = 2000;
 const MAX_RECORD_MS           = 30_000;
 const MAX_SESSION_SECONDS     = 45 * 60;
 
 const ALEX_COLORS = ["#8B5CF6", "#EC4899", "#8B5CF6", "#EC4899"];
 const USER_COLORS = ["#22D3EE", "#06B6D4", "#22D3EE", "#06B6D4"];
+
+/* ─── Streaming audio helper ─────────────────────────────────────────────────
+   Creates a MediaSource URL and pipes the response body into it chunk-by-chunk.
+   The audio element starts playing as soon as the first bytes arrive — no
+   waiting for the full file to download. Falls back to blob URL if MSE is
+   unsupported (Firefox, old Safari).
+   keepAlive: a Set held by the component so the MediaSource isn't GC'd mid-stream. */
+
+async function createStreamingAudioUrl(
+  res: Response,
+  signal: AbortSignal,
+  keepAlive: Set<MediaSource>,
+): Promise<string> {
+  const mseSupported =
+    typeof MediaSource !== "undefined" &&
+    MediaSource.isTypeSupported("audio/mpeg");
+
+  if (!mseSupported || !res.body) {
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  const ms = new MediaSource();
+  keepAlive.add(ms);
+  const url = URL.createObjectURL(ms);
+
+  ms.addEventListener(
+    "sourceopen",
+    () => {
+      (async () => {
+        try {
+          const sb = ms.addSourceBuffer("audio/mpeg");
+          const reader = res.body!.getReader();
+          while (!signal.aborted) {
+            const { done, value } = await reader.read();
+            if (done) {
+              try { ms.endOfStream(); } catch {}
+              break;
+            }
+            await new Promise<void>((resolve) => {
+              sb.addEventListener("updateend", resolve, { once: true });
+              try { sb.appendBuffer(value); } catch { resolve(); }
+            });
+          }
+        } catch {
+          try { ms.endOfStream(); } catch {}
+        }
+        keepAlive.delete(ms);
+      })();
+    },
+    { once: true },
+  );
+
+  return url;
+}
 
 /* ─── User avatar ─────────────────────────────────────────────────────────── */
 
@@ -156,6 +211,9 @@ export function InterviewScreen({ session }: { session: SessionData }) {
   const lastLogRef       = useRef(0);
   messagesRef.current = messages;
 
+  // Keeps MediaSource objects alive while audio is streaming (prevents GC mid-play)
+  const activeMSRef = useRef<Set<MediaSource>>(new Set());
+
   // Function refs — break alexSpeak ↔ handleRecordingDone circular dependency
   const alexSpeakRef           = useRef<((text: string, perf?: { turnStart: number; blobKb: number; upload: number; stt: number; llm: number }) => Promise<void>) | null>(null);
   const handleRecordingDoneRef = useRef<(() => Promise<void>) | null>(null);
@@ -236,42 +294,42 @@ export function InterviewScreen({ session }: { session: SessionData }) {
       });
       if (!res.ok) throw new Error("TTS failed");
 
-      const blob = await res.blob();
-      const ttsMs = Date.now() - tTts;
-
-      if (perf) {
-        const totalMs = Date.now() - perf.turnStart;
-        const panel = {
-          turn: turnRef.current,
-          blobKb: perf.blobKb,
-          upload: perf.upload,
-          stt: perf.stt,
-          llm: perf.llm,
-          tts: ttsMs,
-          total: totalMs,
-        };
-        setLatencyPanel(panel);
-        console.log(
-          `\n┌─── TURN ${panel.turn} LATENCY ────────────────────┐\n` +
-          `│  Audio blob  : ${panel.blobKb.toFixed(1)} KB\n` +
-          `│  Upload      : ${panel.upload} ms\n` +
-          `│  STT         : ${panel.stt} ms\n` +
-          `│  LLM         : ${panel.llm} ms\n` +
-          `│  TTS         : ${panel.tts} ms\n` +
-          `│  ─────────────────────────────────\n` +
-          `│  TOTAL       : ${panel.total} ms  (${(panel.total/1000).toFixed(2)}s)\n` +
-          `└───────────────────────────────────────────┘`
-        );
-      } else {
-        console.log(`[latency] TTS (intro): ${ttsMs}ms`);
-      }
-
-      const url = URL.createObjectURL(blob);
+      // Stream audio — resolves as soon as response headers arrive, not after full download
+      const url = await createStreamingAudioUrl(res, new AbortController().signal, activeMSRef.current);
       currentAudioUrlRef.current = url;
       const audio = new Audio(url);
       currentAudioRef.current = audio;
 
-      audio.addEventListener("play", () => setIS("ai_speaking"), { once: true });
+      audio.addEventListener("play", () => {
+        const ttsMs = Date.now() - tTts;
+        if (perf) {
+          const totalMs = Date.now() - perf.turnStart;
+          const panel = {
+            turn: turnRef.current,
+            blobKb: perf.blobKb,
+            upload: perf.upload,
+            stt: perf.stt,
+            llm: perf.llm,
+            tts: ttsMs,
+            total: totalMs,
+          };
+          setLatencyPanel(panel);
+          console.log(
+            `\n┌─── TURN ${panel.turn} LATENCY ────────────────────┐\n` +
+            `│  Audio blob  : ${panel.blobKb.toFixed(1)} KB\n` +
+            `│  Upload      : ${panel.upload} ms\n` +
+            `│  STT         : ${panel.stt} ms\n` +
+            `│  LLM         : ${panel.llm} ms\n` +
+            `│  TTS         : ${panel.tts} ms\n` +
+            `│  ─────────────────────────────────\n` +
+            `│  TOTAL       : ${panel.total} ms  (${(panel.total/1000).toFixed(2)}s)\n` +
+            `└───────────────────────────────────────────┘`
+          );
+        } else {
+          console.log(`[latency] TTS (intro, first audio): ${ttsMs}ms`);
+        }
+        setIS("ai_speaking");
+      }, { once: true });
       audio.addEventListener("ended", () => {
         currentAudioUrlRef.current = null;
         URL.revokeObjectURL(url);
@@ -394,7 +452,8 @@ export function InterviewScreen({ session }: { session: SessionData }) {
       let fullText    = "";
       let tFirstWord  = 0;
 
-      // Fetch TTS for one sentence; runs concurrently across sentences
+      // Fetch TTS for one sentence; runs concurrently across sentences.
+      // Uses MSE streaming so audio starts playing as soon as first bytes arrive.
       const fetchSentenceTTS = async (sentence: string): Promise<string | null> => {
         try {
           const res = await fetch("/api/interview/speak", {
@@ -404,8 +463,7 @@ export function InterviewScreen({ session }: { session: SessionData }) {
             signal: abort.signal,
           });
           if (!res.ok || abort.signal.aborted) return null;
-          const audioBlob = await res.blob();
-          return URL.createObjectURL(audioBlob);
+          return await createStreamingAudioUrl(res, abort.signal, activeMSRef.current);
         } catch {
           return null;
         }
@@ -672,7 +730,7 @@ export function InterviewScreen({ session }: { session: SessionData }) {
               }
               const ws = new WebSocket(
                 `wss://api.deepgram.com/v1/listen` +
-                `?model=nova-2&language=en&smart_format=true&interim_results=true`,
+                `?model=nova-3&language=en&smart_format=true&interim_results=true`,
                 ["token", dgTokenRef.current]
               );
               dgWsRef.current = ws;
