@@ -74,7 +74,7 @@ async function createStreamingAudioUrl(
               break;
             }
             await new Promise<void>((resolve) => {
-              sb.addEventListener("updateend", resolve, { once: true });
+              sb.addEventListener("updateend", () => resolve(), { once: true });
               try { sb.appendBuffer(value); } catch { resolve(); }
             });
           }
